@@ -3,12 +3,13 @@ import os
 import sqlite3
 import re
 from datetime import datetime, timedelta, date
-from flask import Flask, g, render_template, request, redirect, url_for, session, flash
+from flask import Flask, g, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
@@ -16,7 +17,13 @@ load_dotenv()
 # --- Config ---
 DATABASE = os.path.join(os.path.dirname(__file__), "db.sqlite3")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 LEITNER_SCHEDULE = {1:1, 2:3, 3:7, 4:14, 5:30}
+
+# Initialize OpenAI client (only if API key exists)
+openai_client = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 app = Flask(__name__)
 app.config.from_mapping(
@@ -113,6 +120,53 @@ def fetch_leetcode_title(url):
     except Exception as e:
         print(f"Error processing LeetCode URL: {e}")
         return None
+
+# --- AI utils ---
+def improve_note_with_ai(note_text, problem_title=None):
+    """Use AI to improve and structure the note"""
+    if not openai_client:
+        return None, "AI features require OpenAI API key to be configured."
+    
+    if not note_text or not note_text.strip():
+        return None, "Note is empty. Please add some content first."
+    
+    try:
+        prompt = f"""You are helping a software engineer organize their LeetCode problem notes.
+        
+Problem: {problem_title if problem_title else "A coding problem"}
+
+Current note (may be messy or informal):
+{note_text}
+
+Please rewrite this note to be:
+1. Clear and concise
+2. Well-structured with bullet points if needed
+3. Professional but friendly
+4. Focus on key insights, patterns, and approach
+5. Keep technical terms but make them readable
+6. If multiple approaches mentioned, organize them clearly
+7. Remove any unnecessary words while keeping all important information
+
+Return ONLY the improved note, no additional commentary."""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that improves technical notes for software engineers studying algorithms."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+        
+        improved_note = response.choices[0].message.content.strip()
+        return improved_note, None
+        
+    except Exception as e:
+        error_msg = str(e)
+        if "api_key" in error_msg.lower():
+            return None, "Invalid API key. Please configure OPENAI_API_KEY."
+        return None, f"AI service error: {error_msg}"
 
 # --- Validation utils ---
 def is_valid_email(email):
@@ -392,6 +446,24 @@ def mark(card_id, result):
     )
     db.commit()
     return redirect(url_for("dashboard"))
+
+@app.route("/api/improve-note", methods=["POST"])
+@login_required
+def improve_note_api():
+    """API endpoint to improve notes with AI"""
+    data = request.get_json()
+    note_text = data.get("note", "").strip()
+    problem_title = data.get("title", "")
+    
+    if not note_text:
+        return jsonify({"success": False, "error": "Note is empty"}), 400
+    
+    improved_note, error = improve_note_with_ai(note_text, problem_title)
+    
+    if error:
+        return jsonify({"success": False, "error": error}), 500
+    
+    return jsonify({"success": True, "improved_note": improved_note})
 
 @app.route("/delete/<int:card_id>", methods=["POST"])
 @login_required
