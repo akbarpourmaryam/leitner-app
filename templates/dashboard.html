@@ -126,10 +126,7 @@
     <div class="form-group">
       <label>Note (Optional)</label>
       <textarea name="note" id="note-textarea" placeholder="Key insights, patterns, or approach you used..."></textarea>
-      <button type="button" class="btn btn-outline btn-sm" id="ai-improve-btn" style="margin-top: 8px;" onclick="improveNoteWithAI()">
-        ✨ Improve with AI
-      </button>
-      <small class="muted" id="ai-status" style="display: none; margin-left: 12px;"></small>
+      <!-- AI feature disabled for now - can be enabled later -->
     </div>
     
     <div class="form-group">
@@ -210,64 +207,5 @@
 </script>
 {% endif %}
 
-<script>
-async function improveNoteWithAI() {
-  const textarea = document.getElementById('note-textarea');
-  const btn = document.getElementById('ai-improve-btn');
-  const status = document.getElementById('ai-status');
-  const noteText = textarea.value.trim();
-  
-  if (!noteText) {
-    alert('Please write some notes first before using AI to improve them!');
-    return;
-  }
-  
-  // Disable button and show loading
-  btn.disabled = true;
-  btn.textContent = '🤖 Improving...';
-  status.style.display = 'inline';
-  status.textContent = 'AI is working...';
-  status.style.color = '#667eea';
-  
-  try {
-    const response = await fetch('/api/improve-note', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        note: noteText,
-        title: 'Problem Note'
-      })
-    });
-    
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('Server returned an error. Check if you are logged in and API key is configured.');
-    }
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      textarea.value = data.improved_note;
-      status.textContent = '✓ Improved!';
-      status.style.color = '#059669';
-      setTimeout(() => {
-        status.style.display = 'none';
-      }, 3000);
-    } else {
-      status.textContent = '✗ ' + (data.error || 'Unknown error');
-      status.style.color = '#dc2626';
-    }
-  } catch (error) {
-    console.error('AI Error:', error);
-    status.textContent = '✗ ' + error.message;
-    status.style.color = '#dc2626';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '✨ Improve with AI';
-  }
-}
-</script>
+<!-- AI feature disabled - uncomment when ready to use -->
 {% endblock %}
