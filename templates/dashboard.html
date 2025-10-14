@@ -6,6 +6,11 @@
 <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;">
   <h2>🎯 Review Session - {{ review_cards|length }} Problem(s) Due Today!</h2>
   <p style="margin-bottom: 24px;">Review these problems to keep them fresh in your memory.</p>
+{% else %}
+<!-- Review section is hidden when no cards are due. It will automatically appear at the top when you have problems to review! -->
+{% endif %}
+
+{% if review_cards %}
   
   <table>
     <thead>
@@ -52,6 +57,15 @@
       {% endfor %}
     </span>
   </div>
+  {% if due_today == 0 and total > 0 %}
+  <p style="margin-top: 16px; color: #059669; font-weight: 500;">
+    ✨ All caught up! No reviews due today. The review section will appear here when problems are due.
+  </p>
+  {% elif due_today == 0 and total == 0 %}
+  <p style="margin-top: 16px; color: #6b7280;">
+    💡 Add problems below to get started! Review section will appear here when cards are due for review.
+  </p>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -68,13 +82,7 @@
     <div class="form-group">
       <label>LeetCode Problem URL</label>
       <input type="url" name="link" id="leetcode-url" placeholder="https://leetcode.com/problems/two-sum/" required>
-      <small class="muted">Paste the LeetCode URL - we'll try to fetch the title automatically!</small>
-    </div>
-    
-    <div class="form-group">
-      <label>Problem Title (Optional - only if auto-fetch fails)</label>
-      <input type="text" name="title" id="problem-title" placeholder="e.g., 1. Two Sum">
-      <small class="muted">If we can't fetch the title, enter it manually here</small>
+      <small class="muted">Paste the LeetCode URL - title will be fetched automatically!</small>
     </div>
     
     <div class="form-group">
