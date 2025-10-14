@@ -7,6 +7,8 @@ from flask import Flask, g, render_template, request, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
+import requests
+from bs4 import BeautifulSoup
 
 # Load environment variables
 load_dotenv()
@@ -80,6 +82,48 @@ def before_request():
 def inject_user():
     """Make current_user available in all templates"""
     return dict(current_user=current_user())
+
+# --- LeetCode utils ---
+def fetch_leetcode_title(url):
+    """Fetch LeetCode problem title from URL"""
+    try:
+        # Clean and validate URL
+        url = url.strip()
+        if not url:
+            return None
+            
+        # Support different LeetCode URL formats
+        if 'leetcode.com/problems/' not in url:
+            return None
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Try different selectors for title
+        title_elem = soup.find('title')
+        if title_elem:
+            title_text = title_elem.get_text()
+            # Clean up the title (remove " - LeetCode" suffix)
+            title = title_text.split(' - LeetCode')[0].strip()
+            if title:
+                return title
+        
+        # Fallback: try to find it in meta tags
+        meta_title = soup.find('meta', property='og:title')
+        if meta_title and meta_title.get('content'):
+            return meta_title.get('content').strip()
+            
+        return None
+        
+    except Exception as e:
+        print(f"Error fetching LeetCode title: {e}")
+        return None
 
 # --- Validation utils ---
 def is_valid_email(email):
@@ -214,31 +258,87 @@ def dashboard():
 @login_required
 def add():
     user = current_user()
-    title = request.form.get("title","").strip()
     link = request.form.get("link","").strip()
-    idea = request.form.get("idea","").strip()
-    solved_date_str = request.form.get("solved_date","").strip()
-    if not solved_date_str:
-        solved_date = date.today()
-    else:
-        solved_date = datetime.fromisoformat(solved_date_str).date()
+    note = request.form.get("note","").strip()
+    
+    # Auto-fetch title from LeetCode URL
+    title = None
+    if link:
+        title = fetch_leetcode_title(link)
+    
+    # If title fetch failed or no link, use manual title if provided
+    manual_title = request.form.get("title","").strip()
+    if not title and manual_title:
+        title = manual_title
+    
+    if not link:
+        flash("LeetCode problem URL is required.", "error")
+        return redirect(url_for("dashboard"))
+    
+    if not title:
+        flash("Could not fetch problem title. Please check the URL.", "error")
+        return redirect(url_for("dashboard"))
+    
+    # Always use today's date
+    solved_date = date.today()
+    
     box = int(request.form.get("leitner_box","1"))
     if box < 1: box = 1
     if box > 5: box = 5
     next_review = compute_next_review(solved_date, box)
 
-    if not title:
-        flash("Title is required.", "error")
-        return redirect(url_for("dashboard"))
     db = get_db()
     db.execute(
         """INSERT INTO cards (user_id, title, link, idea, solved_date, leitner_box, next_review)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (user["id"], title, link, idea, solved_date, box, next_review),
+        (user["id"], title, link, note, solved_date, box, next_review),
     )
     db.commit()
-    flash("Card added.", "success")
+    flash("Card added successfully!", "success")
     return redirect(url_for("dashboard"))
+
+@app.route("/edit/<int:card_id>", methods=["GET", "POST"])
+@login_required
+def edit(card_id):
+    user = current_user()
+    db = get_db()
+    card = db.execute("SELECT * FROM cards WHERE id=? AND user_id=?", (card_id, user["id"])).fetchone()
+    
+    if not card:
+        flash("Card not found.", "error")
+        return redirect(url_for("dashboard"))
+    
+    if request.method == "POST":
+        link = request.form.get("link","").strip()
+        note = request.form.get("note","").strip()
+        
+        # Auto-fetch title from LeetCode URL if link changed
+        title = None
+        if link and link != card["link"]:
+            title = fetch_leetcode_title(link)
+        
+        # If title fetch failed or link unchanged, use manual title
+        manual_title = request.form.get("title","").strip()
+        if not title:
+            title = manual_title if manual_title else card["title"]
+        
+        if not link:
+            flash("LeetCode problem URL is required.", "error")
+            return render_template("edit.html", card=card)
+        
+        if not title:
+            flash("Could not fetch problem title. Please check the URL.", "error")
+            return render_template("edit.html", card=card)
+        
+        db.execute(
+            "UPDATE cards SET title=?, link=?, idea=? WHERE id=? AND user_id=?",
+            (title, link, note, card_id, user["id"]),
+        )
+        db.commit()
+        flash("Card updated successfully!", "success")
+        return redirect(url_for("dashboard"))
+    
+    return render_template("edit.html", card=card)
 
 @app.route("/review")
 @login_required

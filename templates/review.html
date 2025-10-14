@@ -1,40 +1,50 @@
 
 {% extends "base.html" %}
 {% block content %}
-<h2>Review due</h2>
-{% if not cards %}
-  <p class="muted">Nothing due today — nice! 🎉</p>
-{% else %}
-  <table>
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Idea</th>
-        <th>Box</th>
-        <th>Due</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in cards %}
-      <tr>
-        <td>{% if c.link %}<a href="{{c.link}}" target="_blank">{{ c.title }}</a>{% else %}{{ c.title }}{% endif %}</td>
-        <td class="muted">{{ c.idea or "" }}</td>
-        <td>Box {{ c.leitner_box }}</td>
-        <td>{{ c.next_review }}</td>
-        <td>
-          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-outline">Again</button>
-          </form>
-          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn">Pass</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-{% endif %}
+<div class="card">
+  <h2>🎯 Review Session</h2>
+  {% if not cards %}
+    <div class="empty-state">
+      <h3>🎉 All caught up!</h3>
+      <p>No problems due for review today. Great job!</p>
+      <a href="{{ url_for('dashboard') }}" class="btn" style="text-decoration:none;display:inline-block;margin-top:20px;">Back to Dashboard</a>
+    </div>
+  {% else %}
+    <p class="muted">You have <strong>{{ cards|length }}</strong> problem(s) due for review today.</p>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Problem</th>
+          <th>Note</th>
+          <th>Current Box</th>
+          <th>Due Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cards %}
+        <tr>
+          <td>
+            <a href="{{c.link}}" target="_blank" class="problem-link">{{ c.title }}</a>
+          </td>
+          <td class="muted">{{ c.idea or "" }}</td>
+          <td><span class="badge badge-primary">Box {{ c.leitner_box }}</span></td>
+          <td class="muted">{{ c.next_review }}</td>
+          <td>
+            <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}" style="margin-right:8px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm">❌ Again</button>
+            </form>
+            <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-success btn-sm">✓ Pass</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
 {% endblock %}
