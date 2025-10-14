@@ -241,6 +241,12 @@ async function improveNoteWithAI() {
       })
     });
     
+    // Check if response is JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned an error. Check if you are logged in and API key is configured.');
+    }
+    
     const data = await response.json();
     
     if (data.success) {
@@ -251,11 +257,12 @@ async function improveNoteWithAI() {
         status.style.display = 'none';
       }, 3000);
     } else {
-      status.textContent = '✗ ' + data.error;
+      status.textContent = '✗ ' + (data.error || 'Unknown error');
       status.style.color = '#dc2626';
     }
   } catch (error) {
-    status.textContent = '✗ Error: ' + error.message;
+    console.error('AI Error:', error);
+    status.textContent = '✗ ' + error.message;
     status.style.color = '#dc2626';
   } finally {
     btn.disabled = false;

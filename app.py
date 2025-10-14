@@ -448,22 +448,29 @@ def mark(card_id, result):
     return redirect(url_for("dashboard"))
 
 @app.route("/api/improve-note", methods=["POST"])
+@csrf.exempt
 @login_required
 def improve_note_api():
     """API endpoint to improve notes with AI"""
-    data = request.get_json()
-    note_text = data.get("note", "").strip()
-    problem_title = data.get("title", "")
-    
-    if not note_text:
-        return jsonify({"success": False, "error": "Note is empty"}), 400
-    
-    improved_note, error = improve_note_with_ai(note_text, problem_title)
-    
-    if error:
-        return jsonify({"success": False, "error": error}), 500
-    
-    return jsonify({"success": True, "improved_note": improved_note})
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "No data provided"}), 400
+            
+        note_text = data.get("note", "").strip()
+        problem_title = data.get("title", "")
+        
+        if not note_text:
+            return jsonify({"success": False, "error": "Note is empty"}), 400
+        
+        improved_note, error = improve_note_with_ai(note_text, problem_title)
+        
+        if error:
+            return jsonify({"success": False, "error": error}), 400
+        
+        return jsonify({"success": True, "improved_note": improved_note})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Server error: {str(e)}"}), 500
 
 @app.route("/delete/<int:card_id>", methods=["POST"])
 @login_required
