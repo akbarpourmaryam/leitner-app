@@ -2,6 +2,49 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% if highlighted_card %}
+<div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;">
+  <h2>⚠️ Duplicate Problem Detected</h2>
+  <p style="margin-bottom: 20px;">This problem is already in your collection:</p>
+  
+  <div style="background: white; border-radius: 12px; padding: 20px; border: 2px solid #f59e0b;">
+    <div style="margin-bottom: 12px;">
+      <strong style="font-size: 18px;">
+        <a href="{{ highlighted_card.link }}" target="_blank" class="problem-link">{{ highlighted_card.title }}</a>
+      </strong>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+      <div>
+        <span class="muted" style="font-size: 13px;">Current Box:</span><br>
+        <span class="badge badge-primary" style="font-size: 14px; margin-top: 4px;">Box {{ highlighted_card.leitner_box }}</span>
+      </div>
+      <div>
+        <span class="muted" style="font-size: 13px;">Practiced On:</span><br>
+        <strong>{{ highlighted_card.solved_date }}</strong>
+      </div>
+      <div>
+        <span class="muted" style="font-size: 13px;">Next Review:</span><br>
+        <strong>{{ highlighted_card.next_review }}</strong>
+      </div>
+    </div>
+    {% if highlighted_card.idea %}
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;">
+      <span class="muted" style="font-size: 13px;">Your Notes:</span><br>
+      <p style="margin-top: 8px; color: #4b5563;">{{ highlighted_card.idea }}</p>
+    </div>
+    {% endif %}
+    <div style="margin-top: 16px; text-align: center;">
+      <a href="{{ url_for('edit', card_id=highlighted_card.id) }}" class="btn btn-outline" style="text-decoration: none; display: inline-block;">
+        Edit This Problem
+      </a>
+    </div>
+  </div>
+  <p style="margin-top: 16px; color: #92400e; font-size: 14px;">
+    💡 <strong>Tip:</strong> The problem is highlighted in yellow in your problems list below.
+  </p>
+</div>
+{% endif %}
+
 <div class="card" style="{% if review_cards %}background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;{% else %}background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981;{% endif %}">
   <h2>🎯 Review Session</h2>
   
@@ -116,7 +159,7 @@
     </thead>
     <tbody>
       {% for c in cards %}
-      <tr>
+      <tr id="card-{{ c.id }}" {% if highlight_id and c.id == highlight_id %}style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); animation: highlight-pulse 2s ease-in-out;"{% endif %}>
         <td>
           <a href="{{c.link}}" target="_blank" class="problem-link">{{ c.title }}</a>
         </td>
@@ -142,4 +185,24 @@
   </div>
   {% endif %}
 </div>
+
+{% if highlight_id %}
+<style>
+  @keyframes highlight-pulse {
+    0%, 100% { background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); }
+    50% { background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%); }
+  }
+</style>
+<script>
+  // Scroll to highlighted card
+  document.addEventListener('DOMContentLoaded', function() {
+    const highlightedCard = document.getElementById('card-{{ highlight_id }}');
+    if (highlightedCard) {
+      setTimeout(function() {
+        highlightedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}

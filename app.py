@@ -225,6 +225,8 @@ def dashboard():
     ).fetchall()
     
     q = request.args.get("q","").strip()
+    highlight_id = request.args.get("highlight", type=int)
+    
     if q:
         cards = db.execute(
             """SELECT * FROM cards WHERE user_id=? AND (title LIKE ? OR idea LIKE ?) 
@@ -237,6 +239,14 @@ def dashboard():
             (user["id"],),
         ).fetchall()
 
+    # Get highlighted card details if exists
+    highlighted_card = None
+    if highlight_id:
+        highlighted_card = db.execute(
+            "SELECT * FROM cards WHERE id=? AND user_id=?",
+            (highlight_id, user["id"])
+        ).fetchone()
+
     # stats
     total = db.execute("SELECT COUNT(*) c FROM cards WHERE user_id=?", (user["id"],)).fetchone()["c"]
     due_today = len(review_cards)
@@ -246,7 +256,7 @@ def dashboard():
     ).fetchall()
     box_counts = {row["leitner_box"]: row["c"] for row in by_box}
 
-    return render_template("dashboard.html", cards=cards, review_cards=review_cards, total=total, due_today=due_today, box_counts=box_counts, q=q)
+    return render_template("dashboard.html", cards=cards, review_cards=review_cards, total=total, due_today=due_today, box_counts=box_counts, q=q, highlight_id=highlight_id, highlighted_card=highlighted_card)
 
 @app.route("/add", methods=["POST"])
 @login_required
@@ -259,6 +269,18 @@ def add():
     if not link:
         flash("LeetCode problem URL is required.", "error")
         return redirect(url_for("dashboard"))
+    
+    # Check for duplicate URL
+    db = get_db()
+    existing_card = db.execute(
+        "SELECT * FROM cards WHERE user_id=? AND link=?",
+        (user["id"], link)
+    ).fetchone()
+    
+    if existing_card:
+        # Problem already exists - show the existing card
+        flash(f"⚠️ This problem already exists in your collection!", "error")
+        return redirect(url_for("dashboard", highlight=existing_card["id"]))
     
     # Auto-fetch title from LeetCode URL, fallback to manual title
     title = fetch_leetcode_title(link)
@@ -279,7 +301,6 @@ def add():
     if box > 5: box = 5
     next_review = compute_next_review(solved_date, box)
 
-    db = get_db()
     db.execute(
         """INSERT INTO cards (user_id, title, link, idea, solved_date, leitner_box, next_review)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
