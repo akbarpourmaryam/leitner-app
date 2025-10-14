@@ -1,6 +1,46 @@
 
 {% extends "base.html" %}
 {% block content %}
+
+{% if review_cards %}
+<div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;">
+  <h2>🎯 Review Session - {{ review_cards|length }} Problem(s) Due Today!</h2>
+  <p style="margin-bottom: 24px;">Review these problems to keep them fresh in your memory.</p>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Problem</th>
+        <th>Note</th>
+        <th>Current Box</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in review_cards %}
+      <tr>
+        <td>
+          <a href="{{c.link}}" target="_blank" class="problem-link">{{ c.title }}</a>
+        </td>
+        <td class="muted">{{ c.idea[:60] + '...' if c.idea and c.idea|length > 60 else (c.idea or "") }}</td>
+        <td><span class="badge badge-primary">Box {{ c.leitner_box }}</span></td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}" style="margin-right:8px;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger btn-sm">❌ Again</button>
+          </form>
+          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-success btn-sm">✓ Pass</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="card">
   <h2>📊 Dashboard</h2>
   <div>
@@ -27,8 +67,14 @@
     
     <div class="form-group">
       <label>LeetCode Problem URL</label>
-      <input type="url" name="link" placeholder="https://leetcode.com/problems/..." required>
-      <small class="muted">Paste the LeetCode URL - we'll automatically fetch the title!</small>
+      <input type="url" name="link" id="leetcode-url" placeholder="https://leetcode.com/problems/two-sum/" required>
+      <small class="muted">Paste the LeetCode URL - we'll try to fetch the title automatically!</small>
+    </div>
+    
+    <div class="form-group">
+      <label>Problem Title (Optional - only if auto-fetch fails)</label>
+      <input type="text" name="title" id="problem-title" placeholder="e.g., 1. Two Sum">
+      <small class="muted">If we can't fetch the title, enter it manually here</small>
     </div>
     
     <div class="form-group">

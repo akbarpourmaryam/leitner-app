@@ -85,7 +85,7 @@ def inject_user():
 
 # --- LeetCode utils ---
 def fetch_leetcode_title(url):
-    """Fetch LeetCode problem title from URL"""
+    """Fetch LeetCode problem title from URL using slug extraction"""
     try:
         # Clean and validate URL
         url = url.strip()
@@ -96,33 +96,22 @@ def fetch_leetcode_title(url):
         if 'leetcode.com/problems/' not in url:
             return None
         
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        
-        response = requests.get(url, headers=headers, timeout=5)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Try different selectors for title
-        title_elem = soup.find('title')
-        if title_elem:
-            title_text = title_elem.get_text()
-            # Clean up the title (remove " - LeetCode" suffix)
-            title = title_text.split(' - LeetCode')[0].strip()
+        # Extract problem slug from URL (e.g., "two-sum" from the URL)
+        # Since LeetCode often blocks web scraping, we'll use the slug method
+        try:
+            slug = url.split('/problems/')[1].rstrip('/').split('/')[0]
+            # Convert slug to title (e.g., "two-sum" -> "Two Sum")
+            title = ' '.join(word.capitalize() for word in slug.split('-'))
             if title:
                 return title
-        
-        # Fallback: try to find it in meta tags
-        meta_title = soup.find('meta', property='og:title')
-        if meta_title and meta_title.get('content'):
-            return meta_title.get('content').strip()
+        except Exception as e:
+            print(f"Error parsing LeetCode URL slug: {e}")
+            return None
             
         return None
         
     except Exception as e:
-        print(f"Error fetching LeetCode title: {e}")
+        print(f"Error processing LeetCode URL: {e}")
         return None
 
 # --- Validation utils ---
@@ -227,6 +216,14 @@ def compute_next_review(solved_date: date, box: int) -> date:
 def dashboard():
     db = get_db()
     user = current_user()
+    
+    # Get cards due for review
+    review_cards = db.execute(
+        """SELECT * FROM cards WHERE user_id=? AND date(next_review) <= date('now')
+           ORDER BY next_review ASC, id ASC""",
+        (user["id"],),
+    ).fetchall()
+    
     q = request.args.get("q","").strip()
     if q:
         cards = db.execute(
@@ -242,17 +239,14 @@ def dashboard():
 
     # stats
     total = db.execute("SELECT COUNT(*) c FROM cards WHERE user_id=?", (user["id"],)).fetchone()["c"]
-    due_today = db.execute(
-        "SELECT COUNT(*) c FROM cards WHERE user_id=? AND date(next_review) <= date('now')",
-        (user["id"],),
-    ).fetchone()["c"]
+    due_today = len(review_cards)
     by_box = db.execute(
         "SELECT leitner_box, COUNT(*) c FROM cards WHERE user_id=? GROUP BY leitner_box",
         (user["id"],),
     ).fetchall()
     box_counts = {row["leitner_box"]: row["c"] for row in by_box}
 
-    return render_template("dashboard.html", cards=cards, total=total, due_today=due_today, box_counts=box_counts, q=q)
+    return render_template("dashboard.html", cards=cards, review_cards=review_cards, total=total, due_today=due_today, box_counts=box_counts, q=q)
 
 @app.route("/add", methods=["POST"])
 @login_required
@@ -260,23 +254,21 @@ def add():
     user = current_user()
     link = request.form.get("link","").strip()
     note = request.form.get("note","").strip()
-    
-    # Auto-fetch title from LeetCode URL
-    title = None
-    if link:
-        title = fetch_leetcode_title(link)
-    
-    # If title fetch failed or no link, use manual title if provided
     manual_title = request.form.get("title","").strip()
-    if not title and manual_title:
-        title = manual_title
     
     if not link:
         flash("LeetCode problem URL is required.", "error")
         return redirect(url_for("dashboard"))
     
-    if not title:
-        flash("Could not fetch problem title. Please check the URL.", "error")
+    # Auto-fetch title from LeetCode URL, fallback to manual title
+    title = fetch_leetcode_title(link)
+    
+    if not title and manual_title:
+        # Use manual title as fallback
+        title = manual_title
+    elif not title and not manual_title:
+        # If both failed, ask user to provide title manually
+        flash("Could not fetch problem title. Please enter the title manually below and try again.", "error")
         return redirect(url_for("dashboard"))
     
     # Always use today's date

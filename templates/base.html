@@ -326,7 +326,6 @@
       {% if session.get('user_id') %}
         <span class="user-email">{{ current_user.email if current_user else '' }}</span>
         <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        <a href="{{ url_for('review') }}">Review</a>
         <a href="{{ url_for('logout') }}">Logout</a>
       {% else %}
         <a href="{{ url_for('login') }}">Login</a>
