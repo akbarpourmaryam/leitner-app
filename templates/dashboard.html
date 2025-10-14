@@ -2,49 +2,53 @@
 {% extends "base.html" %}
 {% block content %}
 
-{% if review_cards %}
-<div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;">
-  <h2>🎯 Review Session - {{ review_cards|length }} Problem(s) Due Today!</h2>
-  <p style="margin-bottom: 24px;">Review these problems to keep them fresh in your memory.</p>
-{% else %}
-<!-- Review section is hidden when no cards are due. It will automatically appear at the top when you have problems to review! -->
-{% endif %}
-
-{% if review_cards %}
+<div class="card" style="{% if review_cards %}background: linear-gradient(135deg, #fef3c7 0%, #fcd34d 100%); border-left: 4px solid #f59e0b;{% else %}background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981;{% endif %}">
+  <h2>🎯 Review Session</h2>
   
-  <table>
-    <thead>
-      <tr>
-        <th>Problem</th>
-        <th>Note</th>
-        <th>Current Box</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in review_cards %}
-      <tr>
-        <td>
-          <a href="{{c.link}}" target="_blank" class="problem-link">{{ c.title }}</a>
-        </td>
-        <td class="muted">{{ c.idea[:60] + '...' if c.idea and c.idea|length > 60 else (c.idea or "") }}</td>
-        <td><span class="badge badge-primary">Box {{ c.leitner_box }}</span></td>
-        <td>
-          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}" style="margin-right:8px;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-danger btn-sm">❌ Again</button>
-          </form>
-          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-success btn-sm">✓ Pass</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if review_cards %}
+    <p style="margin-bottom: 24px;">You have <strong>{{ review_cards|length }}</strong> problem(s) due for review today!</p>
+    
+    <table>
+      <thead>
+        <tr>
+          <th>Problem</th>
+          <th>Note</th>
+          <th>Current Box</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in review_cards %}
+        <tr>
+          <td>
+            <a href="{{c.link}}" target="_blank" class="problem-link">{{ c.title }}</a>
+          </td>
+          <td class="muted">{{ c.idea[:60] + '...' if c.idea and c.idea|length > 60 else (c.idea or "") }}</td>
+          <td><span class="badge badge-primary">Box {{ c.leitner_box }}</span></td>
+          <td>
+            <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}" style="margin-right:8px;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm">❌ Again</button>
+            </form>
+            <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-success btn-sm">✓ Pass</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="empty-state" style="padding: 40px 20px;">
+      <h3 style="color: #059669;">🎉 All caught up!</h3>
+      <p style="color: #6b7280;">No problems due for review today. Great job staying on top of your practice!</p>
+      <p style="color: #9ca3af; font-size: 14px; margin-top: 12px;">
+        Check back tomorrow or add more problems below.
+      </p>
+    </div>
+  {% endif %}
 </div>
-{% endif %}
 
 <div class="card">
   <h2>📊 Dashboard</h2>
@@ -57,15 +61,6 @@
       {% endfor %}
     </span>
   </div>
-  {% if due_today == 0 and total > 0 %}
-  <p style="margin-top: 16px; color: #059669; font-weight: 500;">
-    ✨ All caught up! No reviews due today. The review section will appear here when problems are due.
-  </p>
-  {% elif due_today == 0 and total == 0 %}
-  <p style="margin-top: 16px; color: #6b7280;">
-    💡 Add problems below to get started! Review section will appear here when cards are due for review.
-  </p>
-  {% endif %}
 </div>
 
 <div class="card">

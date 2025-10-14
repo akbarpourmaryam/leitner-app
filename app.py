@@ -352,12 +352,17 @@ def mark(card_id, result):
     card = db.execute("SELECT * FROM cards WHERE id=? AND user_id=?", (card_id, user["id"])).fetchone()
     if not card:
         flash("Card not found.", "error")
-        return redirect(url_for("review"))
+        return redirect(url_for("dashboard"))
     box = card["leitner_box"]
     if result == "pass":
         box = min(5, box + 1)
+        if box == 5:
+            flash(f"🎉 Mastered! '{card['title']}' is now in Box 5 - you'll review it in 30 days.", "success")
+        else:
+            flash(f"✓ Good job! '{card['title']}' moved to Box {box}.", "success")
     else:
         box = 1
+        flash(f"Keep practicing! '{card['title']}' moved back to Box 1.", "error")
     today = date.today()
     next_review = compute_next_review(today, box)
     db.execute(
@@ -365,7 +370,7 @@ def mark(card_id, result):
         (box, today, next_review, card_id),
     )
     db.commit()
-    return redirect(url_for("review"))
+    return redirect(url_for("dashboard"))
 
 @app.route("/delete/<int:card_id>", methods=["POST"])
 @login_required
