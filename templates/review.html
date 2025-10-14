@@ -1,0 +1,40 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Review due</h2>
+{% if not cards %}
+  <p class="muted">Nothing due today — nice! 🎉</p>
+{% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Idea</th>
+        <th>Box</th>
+        <th>Due</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cards %}
+      <tr>
+        <td>{% if c.link %}<a href="{{c.link}}" target="_blank">{{ c.title }}</a>{% else %}{{ c.title }}{% endif %}</td>
+        <td class="muted">{{ c.idea or "" }}</td>
+        <td>Box {{ c.leitner_box }}</td>
+        <td>{{ c.next_review }}</td>
+        <td>
+          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='fail') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline">Again</button>
+          </form>
+          <form class="inline" method="post" action="{{ url_for('mark', card_id=c.id, result='pass') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn">Pass</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

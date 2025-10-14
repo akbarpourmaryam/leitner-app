@@ -1,0 +1,83 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+<p>
+  <span class="stat">Total: <strong>{{ total }}</strong></span>
+  <span class="stat">Due today: <strong>{{ due_today }}</strong></span>
+  <span class="stat">By box:
+    {% for b in [1,2,3,4,5] %}
+      Box {{b}}: {{ box_counts.get(b,0) }}{% if not loop.last %} · {% endif %}
+    {% endfor %}
+  </span>
+</p>
+
+<form method="get" action="{{ url_for('dashboard') }}">
+  <input type="text" name="q" value="{{q}}" placeholder="Search title/idea...">
+</form>
+
+<h3>Add a solved question</h3>
+<form method="post" action="{{ url_for('add') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="grid">
+    <div>
+      <label>Title (e.g., LC 3 - Longest Substring...)</label>
+      <input type="text" name="title" required>
+    </div>
+    <div>
+      <label>Link</label>
+      <input type="url" name="link" placeholder="https://leetcode.com/...">
+    </div>
+  </div>
+  <label>Idea summary</label>
+  <textarea name="idea" placeholder="Pattern + key trick"></textarea>
+  <div class="grid">
+    <div>
+      <label>Solved Date</label>
+      <input type="date" name="solved_date" value="{{ '%Y-%m-%d'|format(datetime.utcnow()) if False else '' }}">
+    </div>
+    <div>
+      <label>Leitner Box</label>
+      <select name="leitner_box">
+        {% for b in [1,2,3,4,5] %}
+        <option value="{{b}}">Box {{b}}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <p class="right"><button class="btn">Add</button></p>
+</form>
+
+<h3>Your cards</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Idea</th>
+      <th>Box</th>
+      <th>Solved</th>
+      <th>Next Review</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in cards %}
+    <tr>
+      <td>
+        {% if c.link %}<a href="{{c.link}}" target="_blank">{{ c.title }}</a>{% else %}{{ c.title }}{% endif %}
+      </td>
+      <td class="muted">{{ c.idea or "" }}</td>
+      <td>Box {{ c.leitner_box }}</td>
+      <td>{{ c.solved_date }}</td>
+      <td>{{ c.next_review }}</td>
+      <td class="right">
+        <form class="inline" method="post" action="{{ url_for('delete', card_id=c.id) }}" onsubmit="return confirm('Delete this card?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
